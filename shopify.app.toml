@@ -1,6 +1,6 @@
 name = "Klickkk Reporting"
 client_id = "6cf7cd34ac10bac317b6081400b0fea1"
-application_url = "https://reporting.klickkk.app"
+application_url = "https://reporting.klickkk.app/api/auth/shopify/launch"
 embedded = false
 
 [access_scopes]

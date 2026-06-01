@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
+const FALLBACK_APP_HOST = 'reporting.klickkk.app'
+const FALLBACK_DASHBOARD_URL = 'https://reporting.klickkk.com'
+
 function hostnameFrom(value?: string) {
   if (!value) return null
   try {
@@ -10,12 +13,12 @@ function hostnameFrom(value?: string) {
 }
 
 export function proxy(request: NextRequest) {
-  const appHost = hostnameFrom(process.env.NEXT_PUBLIC_APP_URL)
-  const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL
-  const dashboardHost = hostnameFrom(dashboardUrl)
+  const appHost = hostnameFrom(process.env.NEXT_PUBLIC_APP_URL) || FALLBACK_APP_HOST
+  const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL || FALLBACK_DASHBOARD_URL
+  const dashboardHost = hostnameFrom(dashboardUrl) || hostnameFrom(FALLBACK_DASHBOARD_URL)
   const requestHost = request.nextUrl.hostname
 
-  if (!appHost || !dashboardUrl || !dashboardHost || requestHost !== appHost) {
+  if (!dashboardHost || requestHost !== appHost) {
     return NextResponse.next()
   }
 

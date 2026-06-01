@@ -6,6 +6,7 @@ import { requireEnv } from './env'
 
 const SESSION_COOKIE = 'klickkk_session'
 const EXPIRY = '7d'
+const LOGIN_TRANSFER_EXPIRY = '60s'
 
 function getSecret() {
   const secret = requireEnv('SESSION_SECRET')
@@ -55,4 +56,27 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function deleteSession() {
   const cookieStore = await cookies()
   cookieStore.delete(SESSION_COOKIE)
+}
+
+export async function createLoginTransferToken(payload: SessionPayload) {
+  return new SignJWT({ ...payload, kind: 'login_transfer' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(LOGIN_TRANSFER_EXPIRY)
+    .sign(getSecret())
+}
+
+export async function verifyLoginTransferToken(token: string): Promise<SessionPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, getSecret())
+    if (payload.kind !== 'login_transfer') return null
+    return {
+      userId: String(payload.userId),
+      role: payload.role as UserRole,
+      clientId: typeof payload.clientId === 'string' ? payload.clientId : null,
+      clientSlug: typeof payload.clientSlug === 'string' ? payload.clientSlug : null,
+    }
+  } catch {
+    return null
+  }
 }

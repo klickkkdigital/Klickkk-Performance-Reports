@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { encrypt } from '@/lib/crypto'
 import { requireAdmin } from '@/lib/auth'
 import { getShopifyApiKey, normalizeShopDomain } from '@/lib/shopify-auth'
+import { saveShopifyConnectionRecord } from '@/lib/shopify-connection'
 import { redirect } from 'next/navigation'
 
 // Shopify — OAuth install for admin-managed connections
@@ -39,26 +40,7 @@ export async function saveShopifyConnection(
   shopName?: string,
 ) {
   await requireAdmin()
-  const encryptedToken = await encrypt(accessToken)
-  await db.dataConnection.upsert({
-    where: { clientId_platform_accountId: { clientId, platform: 'SHOPIFY', accountId: shop } },
-    create: {
-      clientId,
-      platform: 'SHOPIFY',
-      accountId: shop,
-      accountName: shopName || shop,
-      accessToken: encryptedToken,
-      scopes,
-      isActive: true,
-    },
-    update: {
-      accountName: shopName || shop,
-      accessToken: encryptedToken,
-      refreshToken: null,
-      scopes,
-      isActive: true,
-    },
-  })
+  await saveShopifyConnectionRecord(clientId, shop, accessToken, scopes, shopName)
   revalidatePath(`/admin/connections`)
   revalidatePath(`/admin/clients/${clientId}`)
 }

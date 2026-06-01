@@ -60,7 +60,14 @@ export async function GET(req: NextRequest) {
     // Store not installed — run the OAuth flow.
     const cookieStore = await cookies()
     const pendingClient = cookieStore.get(SHOPIFY_PENDING_CLIENT_COOKIE)?.value
-    const pendingState = pendingClient ? verifyShopifyState(pendingClient) : null
+    let pendingState = null
+    if (pendingClient) {
+      try {
+        pendingState = verifyShopifyState(pendingClient)
+      } catch {
+        // Cookie state expired or tampered — proceed without it; a new client will be created.
+      }
+    }
 
     const redirectUri = `${getBaseUrl(req.url)}/api/auth/shopify/callback`
     const installUrl = new URL(`https://${shop}/admin/oauth/authorize`)

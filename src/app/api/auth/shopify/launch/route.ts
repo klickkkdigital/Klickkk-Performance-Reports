@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { getBaseUrl, getDashboardRedirect } from '@/lib/env'
+import { db } from '@/lib/db'
+import { getBaseUrl, getDashboardRedirect, getDashboardUrl } from '@/lib/env'
+import { createLoginTransferToken } from '@/lib/session'
 import {
   createShopifyState,
   getShopifyApiKey,
@@ -25,6 +27,37 @@ export async function GET(req: NextRequest) {
 
   try {
     const shop = normalizeShopDomain(shopParam)
+
+    // If the store is already installed, skip OAuth and log the merchant in directly.
+    const existingConnection = await db.dataConnection.findFirst({
+      where: { platform: 'SHOPIFY', accountId: shop, isActive: true },
+      include: {
+        client: {
+          include: {
+            users: {
+              where: { role: 'CLIENT_VIEWER', isActive: true },
+              orderBy: { createdAt: 'asc' },
+              take: 1,
+            },
+          },
+        },
+      },
+    })
+
+    const existingUser = existingConnection?.client?.users?.[0]
+    if (existingConnection?.client && existingUser) {
+      const transferToken = await createLoginTransferToken({
+        userId: existingUser.id,
+        role: 'CLIENT_VIEWER',
+        clientId: existingConnection.client.id,
+        clientSlug: existingConnection.client.slug,
+      })
+      const consumeUrl = new URL('/api/auth/session/consume', getDashboardUrl(req.url))
+      consumeUrl.searchParams.set('token', transferToken)
+      return NextResponse.redirect(consumeUrl)
+    }
+
+    // Store not installed — run the OAuth flow.
     const cookieStore = await cookies()
     const pendingClient = cookieStore.get(SHOPIFY_PENDING_CLIENT_COOKIE)?.value
     const pendingState = pendingClient ? verifyShopifyState(pendingClient) : null

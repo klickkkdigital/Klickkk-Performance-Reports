@@ -22,6 +22,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  if (request.nextUrl.searchParams.has('shop')) {
+    const launchUrl = new URL('/api/auth/shopify/launch', request.url)
+    launchUrl.search = request.nextUrl.search
+    return NextResponse.redirect(launchUrl)
+  }
+
   const redirectUrl = new URL(request.nextUrl.pathname, dashboardUrl)
   redirectUrl.search = request.nextUrl.search
   return NextResponse.redirect(redirectUrl)

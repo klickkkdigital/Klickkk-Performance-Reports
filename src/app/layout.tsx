@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Klickkk Dashboard",
+  title: "Klickkk : Performance Reports",
   description: "Multi-platform reporting dashboard",
 };
 

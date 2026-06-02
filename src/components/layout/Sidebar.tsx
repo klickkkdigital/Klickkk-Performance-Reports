@@ -53,7 +53,7 @@ export default function Sidebar({
               {isAdmin ? 'K' : client?.name[0] ?? 'K'}
             </div>
             <span className="font-semibold text-gray-900 text-sm">
-              {isAdmin ? 'Klickkk Admin' : (client?.name ?? 'Dashboard')}
+              {isAdmin ? 'Klickkk : Performance Reports' : (client?.name ?? 'Dashboard')}
             </span>
           </div>
         )}

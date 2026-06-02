@@ -7,9 +7,10 @@ export default function ConnectGoogleButton({ clientId }: { clientId: string }) 
   ].join(' ')
 
   const handleConnect = () => {
+    const redirectUri = `${window.location.origin}/api/auth/google/callback`
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
     url.searchParams.set('client_id', process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!)
-    url.searchParams.set('redirect_uri', `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`)
+    url.searchParams.set('redirect_uri', redirectUri)
     url.searchParams.set('response_type', 'code')
     url.searchParams.set('scope', SCOPES)
     url.searchParams.set('access_type', 'offline')

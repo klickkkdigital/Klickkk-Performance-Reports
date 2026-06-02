@@ -61,7 +61,7 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-4">Klickkk Reporting Dashboard</p>
+        <p className="text-center text-xs text-gray-400 mt-4">Klickkk : Performance Reports</p>
       </div>
     </div>
   )

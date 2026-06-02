@@ -2,9 +2,9 @@
 
 export default function ConnectMetaButton({ clientId }: { clientId: string }) {
   const META_SCOPES = 'ads_read,ads_management,business_management'
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/meta/callback`
 
   const handleConnect = () => {
+    const redirectUri = `${window.location.origin}/api/auth/meta/callback`
     const url = new URL('https://www.facebook.com/v20.0/dialog/oauth')
     url.searchParams.set('client_id', process.env.NEXT_PUBLIC_META_APP_ID!)
     url.searchParams.set('redirect_uri', redirectUri)

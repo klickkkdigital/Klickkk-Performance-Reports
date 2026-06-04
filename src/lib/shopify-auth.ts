@@ -5,7 +5,7 @@ const STATE_MAX_AGE_MS = 10 * 60 * 1000
 export const SHOPIFY_PENDING_CLIENT_COOKIE = 'klickkk_shopify_client'
 
 type ShopifyState = {
-  clientId: string
+  clientId?: string
   shop?: string
   ts: number
   returnUrl?: string
@@ -53,10 +53,15 @@ export function normalizeShopDomain(input: string) {
   return hostname
 }
 
+<<<<<<< Updated upstream
 export function createShopifyState(clientId: string, shop: string, returnUrl?: string) {
   const data: ShopifyState = { clientId, shop, ts: Date.now() }
   if (returnUrl) data.returnUrl = returnUrl
   const payload = base64Url(JSON.stringify(data))
+=======
+export function createShopifyState(shop: string, clientId?: string) {
+  const payload = base64Url(JSON.stringify({ clientId, shop, ts: Date.now() } satisfies ShopifyState))
+>>>>>>> Stashed changes
   return `${payload}.${sign(payload)}`
 }
 
@@ -72,7 +77,7 @@ export function verifyShopifyState(state: string) {
   if (!payload || !signature || sign(payload) !== signature) throw new Error('Invalid Shopify state.')
 
   const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as ShopifyState
-  if (!parsed.clientId || !parsed.ts) throw new Error('Invalid Shopify state.')
+  if (!parsed.ts) throw new Error('Invalid Shopify state.')
   if (Date.now() - parsed.ts > STATE_MAX_AGE_MS) throw new Error('Expired Shopify state.')
   return parsed
 }

@@ -1,4 +1,4 @@
-import { requireAdmin } from '@/lib/auth'
+import { requireConnectionAccess, requireSession } from '@/lib/auth'
 import { selectMetaConnection } from '@/actions/connections'
 import SectionHeader from '@/components/ui/SectionHeader'
 
@@ -23,12 +23,12 @@ function parsePayload(value?: string): MetaSelectPayload | null {
   }
 }
 
-export default async function MetaSelectPage({
+export default async function ClientMetaSelectPage({
   searchParams,
 }: {
   searchParams: Promise<{ data?: string }>
 }) {
-  await requireAdmin()
+  await requireSession()
   const payload = parsePayload((await searchParams).data)
 
   if (!payload || payload.accounts.length === 0) {
@@ -39,9 +39,11 @@ export default async function MetaSelectPage({
     )
   }
 
+  await requireConnectionAccess(payload.clientId)
+
   return (
     <div>
-      <SectionHeader title="Select Meta Account" description="Choose the ad account to connect to this client." />
+      <SectionHeader title="Select Meta Account" description="Choose the ad account to connect." />
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         {payload.accounts.map((account) => (

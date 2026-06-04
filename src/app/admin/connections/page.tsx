@@ -2,8 +2,8 @@ import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
 import { format } from 'date-fns'
 import SectionHeader from '@/components/ui/SectionHeader'
-import ConnectMetaButton from './ConnectMetaButton'
-import ConnectGoogleButton from './ConnectGoogleButton'
+import ConnectMetaButton from '@/components/connections/ConnectMetaButton'
+import ConnectGoogleButton from '@/components/connections/ConnectGoogleButton'
 import { CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react'
 
 const syncStatusIcon = {

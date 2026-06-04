@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { encrypt } from '@/lib/crypto'
-import { requireAdmin } from '@/lib/auth'
+import { requireAdmin, requireConnectionAccess } from '@/lib/auth'
 import { getShopifyApiKey, normalizeShopDomain } from '@/lib/shopify-auth'
 import { saveShopifyConnectionRecord } from '@/lib/shopify-connection'
 import { clearOAuthSelection, getOAuthSelection } from '@/lib/oauth-selection'
@@ -54,7 +54,7 @@ export async function saveMetaConnection(
   accessToken: string,
   expiresAt: Date,
 ) {
-  await requireAdmin()
+  await requireConnectionAccess(clientId)
   const encryptedToken = await encrypt(accessToken)
   await db.dataConnection.upsert({
     where: { clientId_platform_accountId: { clientId, platform: 'META', accountId: adAccountId } },
@@ -66,12 +66,11 @@ export async function saveMetaConnection(
 }
 
 export async function selectMetaConnection(formData: FormData) {
-  await requireAdmin()
-
   const clientId = String(formData.get('clientId') || '')
   const accountId = String(formData.get('accountId') || '')
   const accountName = String(formData.get('accountName') || accountId)
   const selectionId = String(formData.get('selectionId') || '')
+  const session = await requireConnectionAccess(clientId)
 
   const selection = selectionId ? await getOAuthSelection(selectionId, 'META') : null
 
@@ -81,7 +80,7 @@ export async function selectMetaConnection(formData: FormData) {
 
   await saveMetaConnection(clientId, accountId, accountName, selection.accessToken, new Date(Date.now() + selection.expiresIn * 1000))
   await clearOAuthSelection()
-  redirect(`/admin/clients/${clientId}?success=meta`)
+  redirect(session.role === 'SUPER_ADMIN' ? `/admin/clients/${clientId}?success=meta` : '/settings?success=meta')
 }
 
 // Google Analytics — token comes from OAuth callback
@@ -92,7 +91,7 @@ export async function saveGoogleConnection(
   accessToken: string,
   refreshToken: string,
 ) {
-  await requireAdmin()
+  await requireConnectionAccess(clientId)
   const [encAccess, encRefresh] = await Promise.all([encrypt(accessToken), encrypt(refreshToken)])
   await db.dataConnection.upsert({
     where: { clientId_platform_accountId: { clientId, platform: 'GOOGLE_ANALYTICS', accountId: propertyId } },
@@ -104,12 +103,11 @@ export async function saveGoogleConnection(
 }
 
 export async function selectGoogleConnection(formData: FormData) {
-  await requireAdmin()
-
   const clientId = String(formData.get('clientId') || '')
   const propertyId = String(formData.get('propertyId') || '')
   const propertyName = String(formData.get('propertyName') || propertyId)
   const selectionId = String(formData.get('selectionId') || '')
+  const session = await requireConnectionAccess(clientId)
 
   const selection = selectionId ? await getOAuthSelection(selectionId, 'GOOGLE_ANALYTICS') : null
 
@@ -119,7 +117,7 @@ export async function selectGoogleConnection(formData: FormData) {
 
   await saveGoogleConnection(clientId, propertyId, propertyName, selection.accessToken, selection.refreshToken)
   await clearOAuthSelection()
-  redirect(`/admin/clients/${clientId}?success=google`)
+  redirect(session.role === 'SUPER_ADMIN' ? `/admin/clients/${clientId}?success=google` : '/settings?success=google')
 }
 
 export async function removeConnection(connectionId: string) {

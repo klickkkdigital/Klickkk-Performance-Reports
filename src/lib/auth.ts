@@ -33,3 +33,10 @@ export async function requireAdmin() {
   if (session.role !== 'SUPER_ADMIN') redirect('/overview')
   return session
 }
+
+export async function requireConnectionAccess(clientId: string) {
+  const session = await requireSession()
+  if (session.role === 'SUPER_ADMIN') return session
+  if (session.clientId === clientId) return session
+  redirect('/overview')
+}

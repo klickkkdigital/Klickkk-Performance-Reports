@@ -1,24 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireSession } from '@/lib/auth'
 import { getDashboardRedirect, getDashboardUrl } from '@/lib/env'
 import { exchangeCodeForToken, getLongLivedToken, fetchAdAccounts } from '@/lib/meta'
 import { saveMetaConnection } from '@/actions/connections'
 import { createOAuthSelection } from '@/lib/oauth-selection'
 
 export async function GET(req: NextRequest) {
-  try {
-    await requireAdmin()
-  } catch {
-    return NextResponse.redirect(getDashboardRedirect('/login', req.url))
-  }
-
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
   const state = searchParams.get('state') // clientId passed via state param
   const error = searchParams.get('error')
 
+  let session
+  try {
+    session = await requireSession()
+  } catch {
+    return NextResponse.redirect(getDashboardRedirect('/login', req.url))
+  }
+
+  const errorPath = session.role === 'SUPER_ADMIN' ? '/admin/connections' : '/settings'
+  const successPath = (clientId: string) => session.role === 'SUPER_ADMIN' ? `/admin/clients/${clientId}` : '/settings'
+  const selectPath = session.role === 'SUPER_ADMIN' ? '/admin/connections/meta-select' : '/connections/meta-select'
+
   if (error || !code || !state) {
-    return NextResponse.redirect(getDashboardRedirect('/admin/connections?error=meta_denied', req.url))
+    return NextResponse.redirect(getDashboardRedirect(`${errorPath}?error=meta_denied`, req.url))
+  }
+
+  if (session.role !== 'SUPER_ADMIN' && session.clientId !== state) {
+    return NextResponse.redirect(getDashboardRedirect('/settings?error=connection_forbidden', req.url))
   }
 
   try {
@@ -30,14 +39,14 @@ export async function GET(req: NextRequest) {
     const activeAccounts = accounts.filter((a) => a.account_status === 1)
 
     if (activeAccounts.length === 0) {
-      return NextResponse.redirect(getDashboardRedirect('/admin/connections?error=no_ad_accounts', req.url))
+      return NextResponse.redirect(getDashboardRedirect(`${errorPath}?error=no_ad_accounts`, req.url))
     }
 
     if (activeAccounts.length === 1) {
       const acct = activeAccounts[0]
       const expiresAt = new Date(Date.now() + longToken.expires_in * 1000)
       await saveMetaConnection(state, acct.id, acct.name, longToken.access_token, expiresAt)
-      return NextResponse.redirect(getDashboardRedirect(`/admin/clients/${state}?success=meta`, req.url))
+      return NextResponse.redirect(getDashboardRedirect(`${successPath(state)}?success=meta`, req.url))
     }
 
     const selectionId = await createOAuthSelection({
@@ -53,9 +62,9 @@ export async function GET(req: NextRequest) {
       accounts: activeAccounts,
     })).toString('base64url')
 
-    return NextResponse.redirect(getDashboardRedirect(`/admin/connections/meta-select?data=${encoded}`, req.url))
+    return NextResponse.redirect(getDashboardRedirect(`${selectPath}?data=${encoded}`, req.url))
   } catch (err) {
     console.error('Meta OAuth callback error:', err)
-    return NextResponse.redirect(getDashboardRedirect(`/admin/clients/${state}?error=meta_failed`, req.url))
+    return NextResponse.redirect(getDashboardRedirect(`${successPath(state)}?error=meta_failed`, req.url))
   }
 }

@@ -7,8 +7,6 @@ import { requireAdmin, requireConnectionAccess } from '@/lib/auth'
 import { getShopifyApiKey, normalizeShopDomain } from '@/lib/shopify-auth'
 import { saveShopifyConnectionRecord } from '@/lib/shopify-connection'
 import { clearOAuthSelection, getOAuthSelection } from '@/lib/oauth-selection'
-import { syncDataConnection } from '@/lib/sync'
-import { format } from 'date-fns'
 import { redirect } from 'next/navigation'
 
 // Shopify — OAuth install for admin-managed connections
@@ -95,12 +93,11 @@ export async function saveGoogleConnection(
 ) {
   await requireConnectionAccess(clientId)
   const [encAccess, encRefresh] = await Promise.all([encrypt(accessToken), encrypt(refreshToken)])
-  const connection = await db.dataConnection.upsert({
+  await db.dataConnection.upsert({
     where: { clientId_platform_accountId: { clientId, platform: 'GOOGLE_ANALYTICS', accountId: propertyId } },
     create: { clientId, platform: 'GOOGLE_ANALYTICS', accountId: propertyId, accountName: propertyName, accessToken: encAccess, refreshToken: encRefresh, isActive: true, scopes: ['analytics.readonly'] },
     update: { accessToken: encAccess, refreshToken: encRefresh, accountName: propertyName, isActive: true },
   })
-  await syncDataConnection(connection.id, format(new Date(), 'yyyy-MM'))
   revalidatePath('/admin/connections')
   revalidatePath(`/admin/clients/${clientId}`)
   revalidatePath('/analytics')

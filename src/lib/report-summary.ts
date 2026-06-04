@@ -1,6 +1,8 @@
 import 'server-only'
 import { db } from './db'
-import { startOfMonth, endOfMonth, format, parseISO } from 'date-fns'
+import { startOfMonth, endOfMonth, format } from 'date-fns'
+import { getLiveGA4Summary } from './live-google-analytics'
+import { getLiveMetaSummary } from './live-meta'
 
 export async function generateReportSummary(clientId: string, month: string) {
   const [year, mon] = month.split('-').map(Number)
@@ -17,48 +19,9 @@ export async function generateReportSummary(clientId: string, month: string) {
 }
 
 async function getMetaSummary(clientId: string, start: Date, end: Date) {
-  const campaigns = await db.campaign.findMany({
-    where: { clientId },
-    include: {
-      metrics: {
-        where: { date: { gte: start, lte: end } },
-      },
-    },
-  })
-
-  const byType = { AWARENESS: initMeta(), TRAFFIC: initMeta(), SALES: initMeta() }
-
-  for (const c of campaigns) {
-    const bucket = byType[c.type]
-    for (const m of c.metrics) {
-      bucket.spend += m.spend
-      bucket.impressions += m.impressions
-      bucket.reach += m.reach
-      bucket.clicks += m.clicks
-      bucket.purchases += m.purchases
-      bucket.purchaseValue += m.purchaseValue
-      bucket.addToCart += m.addToCart
-    }
-  }
-
-  // Compute derived metrics
-  for (const [, b] of Object.entries(byType)) {
-    b.cpm = b.impressions > 0 ? (b.spend / b.impressions) * 1000 : 0
-    b.cpc = b.clicks > 0 ? b.spend / b.clicks : 0
-    b.ctr = b.impressions > 0 ? (b.clicks / b.impressions) * 100 : 0
-    b.roas = b.spend > 0 ? b.purchaseValue / b.spend : 0
-    b.cpa = b.purchases > 0 ? b.spend / b.purchases : 0
-  }
-
-  const totalSpend = Object.values(byType).reduce((s, b) => s + b.spend, 0)
-  const totalRevenue = byType.SALES.purchaseValue
-  const totalRoas = totalSpend > 0 ? totalRevenue / totalSpend : 0
-
-  return { byType, totalSpend, totalRevenue, totalRoas }
-}
-
-function initMeta() {
-  return { spend: 0, impressions: 0, reach: 0, clicks: 0, purchases: 0, purchaseValue: 0, addToCart: 0, cpm: 0, cpc: 0, ctr: 0, roas: 0, cpa: 0 }
+  const meta = await getLiveMetaSummary(clientId, start, end)
+  const byType = Object.fromEntries(meta.byType.map((bucket) => [bucket.type, bucket]))
+  return { byType, totalSpend: meta.totalSpend, totalRevenue: meta.totalRevenue, totalRoas: meta.totalRoas }
 }
 
 async function getShopifySummary(clientId: string, start: Date, end: Date) {
@@ -89,22 +52,18 @@ async function getShopifySummary(clientId: string, start: Date, end: Date) {
 }
 
 async function getAnalyticsSummary(clientId: string, start: Date, end: Date) {
-  const metrics = await db.analyticsMetric.findMany({ where: { clientId, date: { gte: start, lte: end } } })
-
-  return metrics.reduce(
-    (acc, m) => ({
-      sessions: acc.sessions + m.sessions,
-      users: acc.users + m.users,
-      newUsers: acc.newUsers + m.newUsers,
-      pageviews: acc.pageviews + m.pageviews,
-      bounceRate: acc.bounceRate + m.bounceRate / (metrics.length || 1),
-      organicSearch: acc.organicSearch + m.organicSearch,
-      paidSearch: acc.paidSearch + m.paidSearch,
-      social: acc.social + m.social,
-      direct: acc.direct + m.direct,
-      referral: acc.referral + m.referral,
-      email: acc.email + m.email,
-    }),
-    { sessions: 0, users: 0, newUsers: 0, pageviews: 0, bounceRate: 0, organicSearch: 0, paidSearch: 0, social: 0, direct: 0, referral: 0, email: 0 },
-  )
+  const analytics = await getLiveGA4Summary(clientId, start, end)
+  return {
+    sessions: analytics.sessions,
+    users: analytics.users,
+    newUsers: analytics.newUsers,
+    pageviews: analytics.pageviews,
+    bounceRate: analytics.bounceRate,
+    organicSearch: analytics.organicSearch,
+    paidSearch: analytics.paidSearch,
+    social: analytics.social,
+    direct: analytics.direct,
+    referral: analytics.referral,
+    email: analytics.email,
+  }
 }

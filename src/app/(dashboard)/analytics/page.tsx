@@ -1,8 +1,8 @@
 import { requireSession } from '@/lib/auth'
-import { db } from '@/lib/db'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 import KpiCard from '@/components/ui/KpiCard'
 import SectionHeader from '@/components/ui/SectionHeader'
+import { getLiveGA4Summary } from '@/lib/live-google-analytics'
 import { Users, Monitor, MousePointer2, BarChart3 } from 'lucide-react'
 
 export default async function AnalyticsPage() {
@@ -13,37 +13,21 @@ export default async function AnalyticsPage() {
   const monthStart = startOfMonth(now)
   const monthEnd = endOfMonth(now)
 
-  const agg = await db.analyticsMetric.aggregate({
-    where: { clientId, date: { gte: monthStart, lte: monthEnd } },
-    _sum: {
-      sessions: true,
-      users: true,
-      newUsers: true,
-      pageviews: true,
-      organicSearch: true,
-      paidSearch: true,
-      social: true,
-      direct: true,
-      referral: true,
-      email: true,
-    },
-    _avg: { bounceRate: true, avgSessionDuration: true },
-  })
-
-  const sessions = agg._sum.sessions ?? 0
-  const users = agg._sum.users ?? 0
-  const newUsers = agg._sum.newUsers ?? 0
-  const pageviews = agg._sum.pageviews ?? 0
-  const bounceRate = agg._avg.bounceRate ?? 0
-  const avgDuration = agg._avg.avgSessionDuration ?? 0
+  const analytics = await getLiveGA4Summary(clientId, monthStart, monthEnd)
+  const sessions = analytics.sessions
+  const users = analytics.users
+  const newUsers = analytics.newUsers
+  const pageviews = analytics.pageviews
+  const bounceRate = analytics.bounceRate
+  const avgDuration = analytics.avgSessionDuration
 
   const channels = [
-    { label: 'Organic Search', value: agg._sum.organicSearch ?? 0, color: 'bg-emerald-400' },
-    { label: 'Paid Search', value: agg._sum.paidSearch ?? 0, color: 'bg-blue-400' },
-    { label: 'Social', value: agg._sum.social ?? 0, color: 'bg-violet-400' },
-    { label: 'Direct', value: agg._sum.direct ?? 0, color: 'bg-orange-400' },
-    { label: 'Referral', value: agg._sum.referral ?? 0, color: 'bg-pink-400' },
-    { label: 'Email', value: agg._sum.email ?? 0, color: 'bg-sky-400' },
+    { label: 'Organic Search', value: analytics.organicSearch, color: 'bg-emerald-400' },
+    { label: 'Paid Search', value: analytics.paidSearch, color: 'bg-blue-400' },
+    { label: 'Social', value: analytics.social, color: 'bg-violet-400' },
+    { label: 'Direct', value: analytics.direct, color: 'bg-orange-400' },
+    { label: 'Referral', value: analytics.referral, color: 'bg-pink-400' },
+    { label: 'Email', value: analytics.email, color: 'bg-sky-400' },
   ].sort((a, b) => b.value - a.value)
 
   const totalChannelSessions = channels.reduce((s, c) => s + c.value, 0)
@@ -57,6 +41,12 @@ export default async function AnalyticsPage() {
   return (
     <div>
       <SectionHeader title={`Analytics — ${format(now, 'MMMM yyyy')}`} description="Google Analytics 4" />
+
+      {!analytics.connected && (
+        <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+          Google Analytics is not connected yet.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard label="Sessions" value={sessions.toLocaleString()} icon={Monitor} iconBg="bg-blue-50" />

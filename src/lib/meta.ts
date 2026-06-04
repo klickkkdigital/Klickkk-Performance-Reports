@@ -32,7 +32,8 @@ const TRAFFIC_FIELDS = 'spend,impressions,clicks,ctr,cpc,landing_page_views'
 const SALES_FIELDS = 'spend,impressions,clicks,ctr,cpc,actions,action_values,cost_per_action_type,purchase_roas'
 
 export async function fetchAdAccountCampaigns(accessToken: string, adAccountId: string) {
-  const url = new URL(`${GRAPH_API}/act_${adAccountId}/campaigns`)
+  const accountPath = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`
+  const url = new URL(`${GRAPH_API}/${accountPath}/campaigns`)
   url.searchParams.set('fields', 'id,name,status,objective')
   url.searchParams.set('access_token', accessToken)
   url.searchParams.set('limit', '100')
